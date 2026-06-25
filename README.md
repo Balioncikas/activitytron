@@ -1,19 +1,19 @@
-# Activitytron 🎒🤖
+# Activitytron
 
 **Activitytron** is a gamified activity tracker designed to turn your daily life into a series of epic quests. Whether you're looking for a physical challenge, a creative outlet, or just something chaotic to do with friends, Activitytron provides over 200+ pre-made missions to keep life interesting.
 
-## ✨ Features
+## Features
 
 *   **200+ Curated Quests**: A massive built-in library across 9 unique categories:
-    *   🏃 **Physical**: Fitness challenges and movement duels.
-    *   🎨 **Creative**: Drawing, filmmaking, and DIY projects.
-    *   🍕 **Food & Cooking**: Culinary experiments and snack challenges.
-    *   😂 **Funny & Chaotic**: Social experiments and hilarious interactions.
-    *   🗺️ **IRL Adventures**: City exploration and "Random Walk" routes.
-    *   🧠 **Mind Games**: Memory tests and logic battles.
-    *   🎮 **Gaming**: Speedruns and retro gaming challenges.
-    *   🎲 **Wildcard**: Unpredictable tasks and "Yes Day" rules.
-    *   ☁️ **Chill & Vibes**: Low-energy activities and relaxation missions.
+    *   **Physical**: Fitness challenges and movement duels.
+    *   **Creative**: Drawing, filmmaking, and DIY projects.
+    *   **Food & Cooking**: Culinary experiments and snack challenges.
+    *   **Funny & Chaotic**: Social experiments and hilarious interactions.
+    *   **IRL Adventures**: City exploration and "Random Walk" routes.
+    *   **Mind Games**: Memory tests and logic battles.
+    *   **Gaming**: Speedruns and retro gaming challenges.
+    *   **Wildcard**: Unpredictable tasks and "Yes Day" rules.
+    *   **Chill & Vibes**: Low-energy activities and relaxation missions.
 *   **Custom Quest Engine**: Create, describe, and track your own personal activities.
 *   **Smart Search**: Real-time filtering to find the perfect quest for your current mood.
 *   **Offline First**: Built with Room Database for full functionality without an internet connection.
@@ -29,7 +29,7 @@
 *   **Navigation**: Navigation3
 *   **Lifecycle**: Lifecycle-aware components & ViewModel
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 *   Android Studio Ladybug or newer
