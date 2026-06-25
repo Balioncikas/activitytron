@@ -1,0 +1,384 @@
+package com.example.activitytron.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.example.activitytron.data.local.ActivityItem
+import com.example.activitytron.data.repository.ActivityRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+
+class ActivityViewModel(private val repository: ActivityRepository) : ViewModel() {
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    val activitiesState: StateFlow<List<ActivityItem>> =
+        combine(repository.getAllActivitiesStream(), _searchQuery) { activities, query ->
+            if (query.isBlank()) {
+                activities
+            } else {
+                activities.filter { 
+                    it.title.contains(query, ignoreCase = true) || 
+                    it.description.contains(query, ignoreCase = true)
+                }
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = emptyList()
+        )
+
+    fun onSearchQueryChange(newQuery: String) {
+        _searchQuery.value = newQuery
+    }
+
+    fun addActivity(title: String, description: String = "", isCustom: Boolean = true, category: String = "Custom") {
+        viewModelScope.launch {
+            repository.insertActivity(ActivityItem(title = title, description = description, isCustom = isCustom, category = category))
+        }
+    }
+
+    fun toggleActivityDone(activity: ActivityItem) {
+        viewModelScope.launch {
+            repository.updateActivity(activity.copy(isDone = !activity.isDone))
+        }
+    }
+
+    fun deleteActivity(activity: ActivityItem) {
+        viewModelScope.launch {
+            repository.deleteActivity(activity)
+        }
+    }
+
+    val preMadeQuests = listOf(
+        //Physical
+        ActivityItem(title = "Strike! Bowling", description = "Head to the lanes for some competition", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Dance Battle", description = "Random music, 1v1 dance challenge", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Mini Race", description = "Find the funniest object in the room fastest", isCustom = false, category = "Physical"),
+        ActivityItem(title = "1 Minute Plank", description = "Hold plank for 1 minute", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Paper Toss Battle", description = "Throw paper into a bin from far distance", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Walking Race", description = "Race to a nearby point and back", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Random Fitness", description = "Do 10 random exercises", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Speed Challenge Mix", description = "Do 3 random tasks quickly", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Mini Workout Duel", description = "Do random exercises better than friend", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Object Balance", description = "Balance object as long as possible", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Mountain Hike", description = "Find a local trail and reach the peak", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Step Count War", description = "Track steps for a full day — whoever has more wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Bike Ride Adventure", description = "Pick a destination 5km away and bike there together", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Swimming Race", description = "Head to a pool and race each other in multiple styles", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Hiking Mission", description = "Find a local trail and hike it to the end", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Frisbee Session", description = "Find an open space and play frisbee for at least 30 minutes", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Skate Park Visit", description = "Go to a skate park and try something you've never tried before", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Obstacle Course", description = "Build a mini obstacle course at home using furniture and pillows", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Table Tennis War", description = "Play table tennis best of 10 — no mercy", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Wall Sit War", description = "Hold a wall sit as long as possible — last one standing wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Jump Rope Sprint", description = "See who can do the most jumps in 60 seconds", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Squat Challenge", description = "Do as many squats as possible in 2 minutes", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Handstand Attempt", description = "Both try to hold a handstand — whoever lasts longer wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Burpee Duel", description = "Do 15 burpees as fast as possible — first to finish wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Stair Sprint", description = "Find a staircase and race up and down 5 times", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Arm Wrestling Best of 5", description = "Classic arm wrestling tournament — best of 5 rounds", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Long Jump Contest", description = "Find an open space and see who can jump the furthest from standing", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Yoga Hold Battle", description = "Find the hardest yoga pose you both can hold and time each other", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Bear Crawl Race", description = "Race across a room or field on all fours", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Tug of War", description = "Find a rope or belt and have a classic tug of war", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Sprint Intervals", description = "Do 10 second sprints with 10 second rests for 5 rounds each", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Dizzy Relay", description = "Spin 10 times then walk a straight line — whoever does it better wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Crab Walk Race", description = "Race across the room in crab walk position", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Lunge Lap", description = "Lunge your way around the block — no cheating", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Plank Duel Talking", description = "Both hold plank and have a conversation — whoever breaks form first loses", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Balance Beam Walk", description = "Find a curb or low wall and walk it without falling off", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Jumping Jack Race", description = "First to 100 jumping jacks wins", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Piggyback Challenge", description = "Carry each other piggyback style as far as you can — then swap", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Penalty Shootout", description = "Find any goal or target and take 10 penalty kicks each", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Rock Climbing Wall", description = "Visit a local climbing gym and attempt a beginner wall", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Dodgeball Solo", description = "One throws, one dodges — 10 throws each then swap", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Silent Workout", description = "Do a full 10 minute workout without making a single sound", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Push-Up Pyramid", description = "Do 1 push-up, then 2, then 3 — keep going until someone fails", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Sack Race", description = "Find bags and race in a sack race across the yard or park", isCustom = false, category = "Physical"),
+
+        //Food & Cooking
+        ActivityItem(title = "Snack Roulette", description = "Pick random snacks and rate the combo", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Push-Up Challenge", description = "Do 20 push-ups, loser buys food", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Mini Food Challenge", description = "Make the weirdest edible snack combo", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Photo Mission", description = "Take a creative photo of something random outside", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Mystery Drink", description = "Mix 2 drinks and taste it", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Blind Taste Test", description = "Taste something without seeing it", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Speed Snack Eat", description = "Eat snack as fast as possible", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Snack Ranking", description = "Rank snacks from worst to best", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Master Chef", description = "Cook a 3-course meal with friends", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Park Picnic", description = "Pack some snacks and enjoy the sun", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Street Food Trial", description = "Find and eat something neither of you has tried before", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Picnic Run", description = "Grab snacks from a store and find a park to eat in", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Mystery Cook-Off", description = "Each pick 3 random ingredients and cook something edible together", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Blindfolded Taste Test", description = "Feed each other mystery foods blindfolded and guess what they are", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Cuisine Roulette", description = "Spin a wheel of world cuisines and order from that country tonight", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Worst Recipe Challenge", description = "Find the most cursed recipe online and make it together", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Pizza From Scratch", description = "Make pizza completely from scratch — dough included", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Street Food Tour", description = "Spend an afternoon eating only from street food stands", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Dessert War", description = "Each make a dessert without a recipe and judge the results", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Breakfast for Dinner", description = "Make a full breakfast spread but eat it at dinner time", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Spicy Challenge", description = "Find the spiciest thing available and see who lasts longer", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Sushi Night", description = "Try to make homemade sushi rolls together", isCustom = false, category = "Food & Cooking"),
+        ActivityItem(title = "Build Something", description = "Using only stuff you own, build or create something together in under an hour", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Push-Up Duel", description = "See who can do more push-ups in one set — no cheating", isCustom = false, category = "Physical"),
+        ActivityItem(title = "Rank Everything", description = "Spend an hour ranking random things — foods, movies, life choices", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Escape Room", description = "Book an escape room and try to beat it before time runs out", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Swap Playlists", description = "Listen only to the other person's music taste for a full day", isCustom = false, category = "Chill"),
+
+        //Funny & Chaotic
+        ActivityItem(title = "Meme Battle", description = "Find the funniest meme in 3 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Tongue Twister War", description = "Say a tongue twister 5 times fast", isCustom = false, category = "Funny"),
+        ActivityItem(title = "NPC Mode", description = "Act like NPCs in public for 30 seconds", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Startup Pitch", description = "Present a fake business idea in 2 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Reaction Test", description = "Try not to laugh challenge for 1 minute", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Reverse Day Talk", description = "Talk backwards words for 5 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "TikTok Idea", description = "Create a TikTok idea in 2 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "No Hands Challenge", description = "Do a simple task without using hands", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Interview", description = "Interview each other like you're famous", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Chair Spin Challenge", description = "Spin and walk straight after", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Random Debate", description = "Debate a silly topic seriously", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Laugh Control", description = "Try not to laugh for 2 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Commercial", description = "Act like you're selling a random object", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Walk Style Challenge", description = "Walk like a robot or animal", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Silly Voice Talk", description = "Talk in funny voices only", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake News Reporter", description = "Report fake news seriously", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Laugh Voice Challenge", description = "Talk while laughing", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Boss Meeting", description = "Pretend you're in a work meeting", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Emoji Only Chat", description = "Communicate only using emojis", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Freeze Pose Battle", description = "Hold funniest pose longest", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Funny Walk Race", description = "Race using silly walking styles", isCustom = false, category = "Funny"),
+        ActivityItem(title = "One Breath Talk", description = "Say sentence in one breath", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Silent Charades", description = "Act without speaking", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Random Challenge Wheel", description = "Spin imaginary wheel for task", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Friend Roast Light", description = "Funny harmless roasts only", isCustom = false, category = "Funny"),
+        ActivityItem(title = "One Hand Challenge", description = "Do task using one hand only", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Cooking Show", description = "Act like cooking show host", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Bad Advice Only", description = "Ask strangers for directions and only follow the worst suggestion you get", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Impression Battle", description = "Take turns doing impressions of each other — vote on the best one", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Worst Outfit Contest", description = "Each put together the worst outfit you can from your own clothes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Explain It Badly", description = "Each explain a movie plot as badly as possible and guess the film", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Backwards Day", description = "Do everything in reverse order today — dessert first, walk backwards, etc", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Compliment Strangers", description = "Each give 5 genuine compliments to random strangers", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Random Accent Hour", description = "Both speak in random accents for a full hour without breaking", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Silence Challenge", description = "Go somewhere public and stay completely silent for 15 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Charades Duel", description = "Play charades but only use the most obscure topics you can think of", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Improv Scene", description = "Act out a random scenario one of you makes up on the spot", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Wrong Name Day", description = "Call each other by made-up names all day and don't break character", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Prank Call Hotlines", description = "Call random businesses and ask the most absurd questions possible", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Meme IRL", description = "Recreate your favourite meme in real life and photograph it", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Podcast Episode", description = "Record a fake podcast episode about any topic you choose", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Compliment War", description = "Take turns giving increasingly over-the-top compliments until someone cracks", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Gibberish Translator", description = "One speaks gibberish, the other seriously translates it for a stranger", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Dramatic Reading", description = "Read a random Wikipedia article as dramatically as possible", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Slow Motion Everything", description = "Move in slow motion for 10 minutes no matter what you're doing", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Invisible Object Pass", description = "Pass an invisible object between you and react as if it's real", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Eyebrow Only Talk", description = "Communicate only using eyebrow movements for 3 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Serious Face Challenge", description = "Both stare at each other completely deadpan — first to smile loses", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Bad Lip Sync", description = "Put on a song and deliberately lip sync it as badly as possible", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Invisible Wall Mime", description = "Pretend there's an invisible wall between you and interact with it seriously", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Documentary Mode", description = "Narrate everything the other person does like a nature documentary", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Wrong Answers Only", description = "Ask each other questions and only give hilariously wrong answers", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Dramatic Exit Loop", description = "Keep leaving and re-entering the room with increasingly dramatic entrances", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Theme Song Walk", description = "Play a random song and walk around in public like it's your theme music", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Robot Takeover", description = "Both act like malfunctioning robots for 15 minutes straight", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Argument", description = "Have a loud dramatic argument about something completely trivial in public", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Overly Formal Day", description = "Address each other with ridiculous formal titles and speak like royalty all day", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Mirror Twin", description = "Follow each other around copying every single movement in real time", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Infomercial Mode", description = "Try to sell a random household object to a pretend audience as passionately as possible", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Villain Monologue", description = "Each deliver a dramatic villain speech about something mundane like losing your keys", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Sportscaster Mode", description = "One person narrates everything the other does like a live sports broadcast", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Over-Explain Everything", description = "Explain every tiny action you do in extreme unnecessary detail for 10 minutes", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Fake Talent Show", description = "Each perform a ridiculous made-up talent and judge each other with scorecards", isCustom = false, category = "Funny"),
+        ActivityItem(title = "Plot Twist Story", description = "Tell a story but the other person shouts plot twist every 20 seconds and you have to keep going", isCustom = false, category = "Funny"),
+
+        //IRL Adventures
+        ActivityItem(title = "Random Walk", description = "Walk outside and go wherever feels right for 20 minutes", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Random Walk Route", description = "Let coin decide direction every turn", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Outdoor Mission", description = "Find something blue outside", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Unknown Route Walk", description = "Walk somewhere without GPS for 20 minutes and see where you end up", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "1 Euro Challenge", description = "Go to a shop with only €1 each and buy the most interesting thing you can find", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "The Dare Map", description = "Point randomly on Google Maps and go to that location", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Sunrise Mission", description = "Wake up early enough to watch the sunrise together", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Thrift Shop Flip", description = "Each spend €5 at a thrift store and style an outfit for the other", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Local Tourist", description = "Visit a landmark in your city you've never actually been to", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Night Walk", description = "Go for a walk after midnight and see the city at night", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Market Run", description = "Visit a local market and each buy one mystery ingredient", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Rooftop Hunt", description = "Find the highest accessible spot in your area and enjoy the view", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Random Bus Ride", description = "Board any bus without checking the route and ride it to the end", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Café Hopping", description = "Visit three different cafés in one day and rate each one", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Bookshop Dive", description = "Each pick a book for the other to read without showing the cover", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Park Bench Challenge", description = "Sit on a random park bench and talk for an hour with no phones", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Flea Market Flip", description = "Each spend under €3 at a flea market and trade what you bought", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Stranger Quest", description = "Ask a random stranger to give you a challenge and complete it", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Volunteer Day", description = "Sign up to volunteer somewhere together for a morning", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Graffiti Hunt", description = "Walk your city and find 10 pieces of street art — photograph each one", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Dawn Patrol", description = "Be somewhere interesting before 6am and document it", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Treasure Hunt Setup", description = "One person hides 5 clues around the neighbourhood — the other has to find them all", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Abandoned Spot Explore", description = "Find an old or forgotten place in your city and explore it safely", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Train to Nowhere", description = "Take the next available train, ride it for 3 stops, explore wherever you land", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Neighbourhood You've Never Entered", description = "Pick a part of your city neither of you has been to and spend 2 hours there", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Hidden Gem Search", description = "Ask a local for their favourite underrated spot and go find it", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Sunset Chase", description = "Drive or walk to the best sunset spot you can find before it disappears", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Night Market Crawl", description = "Find a night market or late-night food spot and spend the evening exploring it", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Historical Spot Visit", description = "Find the oldest building or monument near you and learn its story", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Waterfront Walk", description = "Find a river, lake, or sea and walk along it until you don't want to walk anymore", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "City Bingo", description = "Make a list of 10 things to find in the city and race to spot them all", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Midnight Snack Run", description = "Go out after midnight specifically to find the best late-night food available", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "One Way Ticket", description = "Take any transit one way to the end of the line then walk back a different route", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Architecture Walk", description = "Walk through your city and photograph the 5 most interesting buildings you can find", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Find a Secret Garden", description = "Search for a hidden courtyard, park, or green space that most people walk past", isCustom = false, category = "Adventures"),
+        ActivityItem(title = "Storm Chase (Safe)", description = "Find a sheltered spot to watch a rainstorm together — bring snacks", isCustom = false, category = "Adventures"),
+
+        //Random & Wildcard
+        ActivityItem(title = "Wallpaper Swap", description = "Swap phone wallpapers for 24 hours", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Silent Mode", description = "Communicate without speaking for 10 minutes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Chill Walk Talk", description = "Walk and talk about random life topics", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Speed Cleanup", description = "Clean your room in 5 minutes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Random Compliment", description = "Say 5 honest compliments to your friend", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "The Big Debate", description = "Pick a completely pointless topic and debate it seriously for 20 minutes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Phone Swap Day", description = "Swap phones for a full day — no deleting anything, no snooping, just vibes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Random Wikipedia Rabbit Hole", description = "Open a random Wikipedia page and keep clicking links for 30 minutes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Personality Test Showdown", description = "Both take the same online personality test and compare results", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Life Advice Exchange", description = "Each give the other one piece of genuine unsolicited life advice", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Dream Journal Share", description = "Each describe the weirdest dream you can remember in full detail", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Conspiracy Theory Hour", description = "Each come up with the most believable fake conspiracy theory you can", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Finish Each Other's Sentences", description = "One starts a sentence, the other finishes it — 20 rounds", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "App Delete Challenge", description = "Each delete one app you use too much and go without it for 24 hours", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Random Skill Swap", description = "Each teach the other one skill you have that they don't in under 15 minutes", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Hot Takes Only", description = "Take turns sharing your most controversial opinions — no judgment allowed", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Blind Schedule", description = "One person plans the entire day without telling the other — just go with it", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Unplugged Hour", description = "Turn off all screens and spend an hour doing literally anything else", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Future Plans Session", description = "Spend an hour seriously planning something you both want to do in the next year", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Confessions Game", description = "Take turns confessing something embarrassing — nothing leaves the room", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Alter Ego Day", description = "Each invent a completely different persona and stay in character all day", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Would You Rather Marathon", description = "Go through 30 increasingly difficult would you rather questions back to back", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Random Act of Kindness", description = "Each do one surprise kind thing for a stranger today and report back", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Comfort Zone Card", description = "Each write down one thing that scares you slightly and do it today", isCustom = false, category = "Wildcard"),
+        ActivityItem(title = "Morning Routine Swap", description = "Follow each other's morning routine exactly for one day", isCustom = false, category = "Wildcard"),
+
+        //Creative
+        ActivityItem(title = "Draw Each Other", description = "1 minute sketch, no erasing allowed", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Story Chain", description = "Build a story one sentence at a time", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Blind Drawing", description = "Draw something without looking at the paper", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Emoji Story", description = "Tell a story using only emojis", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Guess the Song", description = "Hum a song and let friend guess", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Object Story", description = "Pick an object and give it a story", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Speed Drawing", description = "Draw something in 30 seconds", isCustom = false, category = "Creative"),
+        ActivityItem(title = "One Word Story", description = "Build story one word at a time", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Paper Airplane Race", description = "Build and fly paper planes", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Quick Sketch Duel", description = "Draw same object faster wins", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Random Dance Step", description = "Invent a new dance move", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Guess Drawing", description = "Draw and let friend guess", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Speed Drawing Memory", description = "Draw from memory fast", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Random Story Builder", description = "Add plot twist every turn", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Museum Visit", description = "Explore local history or art", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Karaoke Night", description = "Sing your heart out to your favorite hits", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Photo Hunt", description = "Photograph something red, broken, beautiful, and weird — first to finish wins", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Graffiti Safari", description = "Walk around and find the most interesting street art you can", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Lost & Found", description = "Explore a part of your city neither of you has been to before", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Terrible Art Contest", description = "Draw each other's portrait in under 60 seconds — frame the results", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Short Film", description = "Write, film, and edit a 1 minute short film on your phone", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Song in an Hour", description = "Write and record a song together in under 60 minutes", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Sketch Comedy", description = "Write a 2 minute comedy sketch and perform it on video", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Design a Logo", description = "Each design a logo for a fictional company and vote on the best", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Write a Story", description = "Take turns writing one sentence each until you have a full short story", isCustom = false, category = "Creative"),
+        ActivityItem(title = "DIY Project", description = "Find a simple DIY tutorial and build it together from scratch", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Photography Walk", description = "Go for a walk with the goal of taking the best photo you can", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Origami Battle", description = "Look up an origami tutorial and race to finish it first", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Map Your World", description = "Draw a map of your neighbourhood from memory and compare accuracy", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Workout Together", description = "Follow a beginner YouTube workout video together start to finish", isCustom = false, category = "Creative"),
+        ActivityItem(title = "24h No Phone", description = "Both of you go a full day without smartphones — plan something old school", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Old Photos Dive", description = "Dig out old photos or videos and react to them together", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Letter to Future You", description = "Each write a letter to yourselves to open in one year", isCustom = false, category = "Creative"),
+        ActivityItem(title = "Bucket List Session", description = "Write out your top 10 life bucket list items and share them", isCustom = false, category = "Creative"),
+
+        //Mind Games
+        ActivityItem(title = "Sound Guess", description = "Make a sound and let friend guess it", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Memory Test", description = "Remember 10 random objects in 30 seconds", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Guess Price", description = "Guess price of random items online", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Speed Typing Duel", description = "Type fastest sentence race", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Room Bingo", description = "Find 5 random items in room first", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Guess Emoji", description = "Guess meaning of emoji combos", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Mirror Challenge", description = "Copy friend's movements exactly", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Random Fact Fight", description = "Say weird facts until someone loses", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Guess Sound Effect", description = "Make random sounds for guessing", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Blindfold Guess", description = "Guess object while blindfolded", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Random Object Challenge", description = "Turn object into something else", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Mystery Box", description = "Pick random object without looking", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Guess the Object", description = "Describe object without naming it", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Speed Puzzle Mind", description = "Solve simple puzzle fastest", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Random Skill Showoff", description = "Show any weird skill you have", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Epic Ending Pose", description = "Make dramatic pose and hold it", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Coin Flip Day", description = "Let a coin decide every choice you make for a full day", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Yes Day", description = "Both say yes to every suggestion the other makes for 3 hours", isCustom = false, category = "Mind Games"),
+        ActivityItem(title = "Learn Something New", description = "Pick a skill on YouTube and both try to learn it in one afternoon", isCustom = false, category = "Mind Games"),
+
+        //Gaming
+        ActivityItem(title = "Freeze Game", description = "Freeze when music stops randomly", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Hand Clap Game", description = "Create a hand rhythm and repeat it", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "No Talking Game", description = "Don't talk for 10 minutes", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Phone Camera Game", description = "Take best photo in 2 minutes", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Speed Memory Game", description = "Remember list of words quickly", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Random Question Game", description = "Answer weird questions fast", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Reaction Face Game", description = "Make funniest reaction face", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Voice Impression Game", description = "Copy each other's voices", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Board Game Night", description = "Dust off the classics and compete", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Blind Run", description = "Play a game neither of you has tried before with no guides allowed", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Carry or Fail", description = "One plays with the worst setup, the other has to carry — then switch", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Speedrun It", description = "Race to finish the same game level — loser buys snacks", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Versus Marathon", description = "Play 10 rounds of any versus game and track the score", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Retro Night", description = "Play a game from before 2005 and finish it together", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Random Game Wheel", description = "Use a random picker to choose what game to play tonight", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Duo Hard Mode", description = "Play any co-op game on the hardest difficulty", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "No Death Run", description = "Try to complete a game level without either of you dying once", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Game Swap", description = "Each recommend a game the other has never played and play them together", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Minecraft from Zero", description = "Start a fresh Minecraft world and reach the Nether in one session", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Build Battle", description = "Set a 30 minute timer and each build something in a sandbox game — judge each other", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Controller Swap", description = "Take turns every 5 minutes controlling the same character", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "One Life Only", description = "Play any game where if you die, you restart completely", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Genre Roulette", description = "Play a game in a genre neither of you normally touches", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Achievement Hunt", description = "Try to unlock as many achievements as possible in one session", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Invent a Game", description = "Make up a completely new game with its own rules and play it", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Trivia Battle", description = "Find a trivia app and compete across 5 different categories", isCustom = false, category = "Gaming"),
+        ActivityItem(title = "Prediction Game", description = "Each write 5 predictions about the next year and seal them away", isCustom = false, category = "Gaming"),
+
+        //Chill & Vibes
+        ActivityItem(title = "Movie Marathon", description = "Watch a trilogy in one sitting", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Stargazing Night", description = "Go somewhere dark and look at the stars for at least an hour", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Playlist Swap", description = "Each make a playlist for the other and listen to it together", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Campfire Night", description = "Make a campfire or bonfire and just talk until late", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Blanket Fort Cinema", description = "Build a blanket fort and watch a movie inside it", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Deep Talk Night", description = "Turn off screens and just talk about life for two hours straight", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Nostalgia Night", description = "Watch or play something from your childhood together", isCustom = false, category = "Chill"),
+        ActivityItem(title = "Time Capsule", description = "Bury or hide a box of meaningful objects to find in the future", isCustom = false, category = "Chill"),
+    )
+
+    fun addPreMadeQuest(quest: ActivityItem) {
+        viewModelScope.launch {
+            repository.insertActivity(quest.copy(id = 0)) // Ensure it's a new entry
+        }
+    }
+
+    fun addAllPreMadeQuests(quests: List<ActivityItem> = preMadeQuests) {
+        viewModelScope.launch {
+            quests.forEach { repository.insertActivity(it.copy(id = 0)) }
+        }
+    }
+}
+
+class ActivityViewModelFactory(private val repository: ActivityRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ActivityViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ActivityViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
