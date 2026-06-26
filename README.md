@@ -4,7 +4,7 @@
 
 ## Features
 
-*   **200+ Curated Quests**: A massive built-in library across 9 unique categories:
+*   **400+ Curated Quests**: A massive built-in library across 9 unique categories:
     *   **Physical**: Fitness challenges and movement duels.
     *   **Creative**: Drawing, filmmaking, and DIY projects.
     *   **Food & Cooking**: Culinary experiments and snack challenges.
