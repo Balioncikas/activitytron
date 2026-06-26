@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +39,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -53,9 +58,12 @@ fun ActivityListScreen(
     var showRandomDialog by remember { mutableStateOf(false) }
     var showLibraryDialog by remember { mutableStateOf(false) }
     var randomActivity by remember { mutableStateOf<ActivityItem?>(null) }
+    var detailActivity by remember { mutableStateOf<ActivityItem?>(null) }
     val haptic = LocalHapticFeedback.current
     val listState = rememberLazyListState()
-    var pendingExpanded by remember { mutableStateOf(true) }
+    
+    // Expanded states for categories
+    val expandedCategories = remember { mutableStateMapOf<String, Boolean>() }
     var completedExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -158,6 +166,10 @@ fun ActivityListScreen(
                 } else {
                     val pendingActivities = remember(activities) { activities.filter { !it.isDone } }
                     val completedActivities = remember(activities) { activities.filter { it.isDone } }
+                    
+                    val pendingByCategory = remember(pendingActivities) {
+                        pendingActivities.groupBy { it.category }.toSortedMap()
+                    }
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         LazyColumn(
@@ -167,31 +179,38 @@ fun ActivityListScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             if (pendingActivities.isNotEmpty()) {
-                                item(key = "pending_header") {
-                                    SectionHeader(
-                                        title = if (searchQuery.isEmpty()) "To Do" else "Active Matches",
-                                        isExpanded = pendingExpanded,
-                                        onToggle = { pendingExpanded = !pendingExpanded },
-                                        count = pendingActivities.size
-                                    )
-                                }
-                                if (pendingExpanded) {
-                                    items(
-                                        items = pendingActivities,
-                                        key = { it.id }
-                                    ) { activity ->
-                                        ActivityListItem(
-                                            activity = activity,
-                                            onToggleDone = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                viewModel.toggleActivityDone(activity)
-                                            },
-                                            onDelete = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                viewModel.deleteActivity(activity)
-                                            },
-                                            modifier = Modifier.animateItem()
+                                pendingByCategory.forEach { (category, categoryActivities) ->
+                                    val isExpanded = expandedCategories.getOrDefault(category, true)
+                                    
+                                    item(key = "header_$category") {
+                                        SectionHeader(
+                                            title = category,
+                                            isExpanded = isExpanded,
+                                            onToggle = { expandedCategories[category] = !isExpanded },
+                                            count = categoryActivities.size,
+                                            modifier = Modifier.padding(top = if (pendingByCategory.firstKey() == category) 0.dp else 8.dp)
                                         )
+                                    }
+                                    
+                                    if (isExpanded) {
+                                        items(
+                                            items = categoryActivities,
+                                            key = { it.id }
+                                        ) { activity ->
+                                            ActivityListItem(
+                                                activity = activity,
+                                                onToggleDone = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    viewModel.toggleActivityDone(activity)
+                                                },
+                                                onDelete = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    viewModel.deleteActivity(activity)
+                                                },
+                                                onClick = { detailActivity = activity },
+                                                modifier = Modifier.animateItem()
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -221,6 +240,7 @@ fun ActivityListScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 viewModel.deleteActivity(activity)
                                             },
+                                            onClick = { detailActivity = activity },
                                             modifier = Modifier.animateItem()
                                         )
                                     }
@@ -249,8 +269,8 @@ fun ActivityListScreen(
     if (showAddDialog) {
         AddActivityDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { title, desc ->
-                viewModel.addActivity(title, desc)
+            onConfirm = { title, desc, category ->
+                viewModel.addActivity(title, desc, category = category)
                 showAddDialog = false
             }
         )
@@ -280,6 +300,17 @@ fun ActivityListScreen(
             onToggleDone = {
                 viewModel.toggleActivityDone(randomActivity!!)
                 showRandomDialog = false
+            }
+        )
+    }
+
+    if (detailActivity != null) {
+        QuestDetailDialog(
+            activity = detailActivity!!,
+            onDismiss = { detailActivity = null },
+            onToggleDone = {
+                viewModel.toggleActivityDone(detailActivity!!)
+                detailActivity = null
             }
         )
     }
@@ -418,7 +449,7 @@ fun NoSearchResultsState() {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Default.SearchOff,
+            Icons.Default.Search,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.outlineVariant
@@ -426,12 +457,13 @@ fun NoSearchResultsState() {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "No results found",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Text(
-            "Try searching for something else.",
-            style = MaterialTheme.typography.bodyMedium,
+            "We couldn't find any quests matching your search. Try different keywords!",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -447,7 +479,7 @@ fun EmptyState(onOpenLibrary: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Default.Hiking,
+            Icons.Default.Explore,
             contentDescription = null,
             modifier = Modifier.size(100.dp),
             tint = MaterialTheme.colorScheme.outlineVariant
@@ -599,6 +631,7 @@ fun ActivityListItem(
     activity: ActivityItem,
     onToggleDone: () -> Unit,
     onDelete: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -642,7 +675,8 @@ fun ActivityListItem(
         ActivityRow(
             activity = activity,
             onToggleDone = onToggleDone,
-            onDelete = onDelete
+            onDelete = onDelete,
+            onClick = onClick
         )
     }
 }
@@ -652,11 +686,22 @@ fun ActivityRow(
     activity: ActivityItem,
     onToggleDone: () -> Unit,
     onDelete: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scale by animateFloatAsState(
+        targetValue = if (activity.isDone) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "ScaleAnimation"
+    )
+
     ElevatedCard(
-        modifier = modifier.fillMaxWidth().animateContentSize(),
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .animateContentSize()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = if (activity.isDone) 
@@ -690,13 +735,31 @@ fun ActivityRow(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = activity.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = if (activity.isDone) TextDecoration.LineThrough else null,
-                    color = if (activity.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = activity.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = if (activity.isDone) TextDecoration.LineThrough else null,
+                        color = if (activity.isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (activity.isCustom) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "CUSTOM",
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
                 if (activity.description.isNotBlank()) {
                     Text(
                         text = activity.description,
@@ -733,6 +796,131 @@ fun ActivityRow(
     }
 }
 
+@Composable
+fun QuestDetailDialog(
+    activity: ActivityItem,
+    onDismiss: () -> Unit,
+    onToggleDone: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = onToggleDone,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    if (activity.isDone) Icons.AutoMirrored.Filled.Undo else Icons.Default.Check, 
+                    contentDescription = null
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (activity.isDone) "Mark as Not Done" else "Complete Quest!")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Close")
+            }
+        },
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (activity.isCustom) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            "CUSTOM QUEST",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                Text(
+                    activity.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (activity.description.isNotBlank()) {
+                    Column {
+                        Text(
+                            "Mission Description",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            activity.description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 24.sp
+                        )
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Lightbulb, 
+                                contentDescription = null, 
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Completion Tip",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            getCompletionTip(activity.category),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+        },
+        shape = RoundedCornerShape(28.dp)
+    )
+}
+
+fun getCompletionTip(category: String): String {
+    return when (category) {
+        "Physical" -> "Stay hydrated and remember to stretch before and after high-energy quests!"
+        "Food & Cooking" -> "Don't be afraid to experiment. The best flavors often come from the weirdest combos!"
+        "Funny" -> "The goal is to laugh and make others smile. Keep it harmless and have fun!"
+        "Adventures" -> "Keep your phone charged and stay aware of your surroundings while exploring."
+        "Creative" -> "Progress over perfection. The act of creating is more important than the final result."
+        "Gaming" -> "Take breaks between sessions and remember: it's just a game (until it's a speedrun)!"
+        "Mind Games" -> "Focus is key. Try to minimize distractions for the best mental workout."
+        "Chill" -> "Slow down and breathe. This is your time to recharge and find some peace."
+        else -> "Every small step counts towards finishing the quest. You've got this!"
+    }
+}
 @Composable
 fun RandomSelectionDialog(
     activity: ActivityItem,
@@ -807,10 +995,12 @@ fun RandomSelectionDialog(
 @Composable
 fun AddActivityDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
+    onConfirm: (String, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Custom") }
+    val categories = ActivityViewModel.CATEGORIES
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -834,11 +1024,30 @@ fun AddActivityDialog(
                     shape = RoundedCornerShape(12.dp),
                     minLines = 2
                 )
+                
+                Text("Category", style = MaterialTheme.typography.labelLarge)
+                ScrollableTabRow(
+                    selectedTabIndex = categories.indexOf(category),
+                    edgePadding = 0.dp,
+                    containerColor = Color.Transparent,
+                    divider = {},
+                    indicator = {}
+                ) {
+                    categories.forEach { cat ->
+                        FilterChip(
+                            selected = category == cat,
+                            onClick = { category = cat },
+                            label = { Text(cat) },
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { if (title.isNotBlank()) onConfirm(title, description) },
+                onClick = { if (title.isNotBlank()) onConfirm(title, description, category) },
                 enabled = title.isNotBlank(),
                 shape = RoundedCornerShape(12.dp)
             ) {

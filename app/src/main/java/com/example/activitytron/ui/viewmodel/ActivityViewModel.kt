@@ -38,6 +38,21 @@ class ActivityViewModel(private val repository: ActivityRepository) : ViewModel(
         _searchQuery.value = newQuery
     }
 
+    companion object {
+        val CATEGORIES = listOf(
+            "Physical", 
+            "Food & Cooking", 
+            "Funny", 
+            "Adventures", 
+            "Wildcard", 
+            "Creative", 
+            "Mind Games", 
+            "Gaming", 
+            "Chill", 
+            "Custom"
+        )
+    }
+
     fun addActivity(title: String, description: String = "", isCustom: Boolean = true, category: String = "Custom") {
         viewModelScope.launch {
             repository.insertActivity(ActivityItem(title = title, description = description, isCustom = isCustom, category = category))
